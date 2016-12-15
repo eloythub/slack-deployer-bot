@@ -1,12 +1,35 @@
-FROM asia.gcr.io/eloyt-149708/deployer-bot
+FROM node:6.9.1
 
 MAINTAINER Mahan Hazrati<eng.mahan.hazrati@gmail.com>
 
-RUN npm install hubot-slack --save
-RUN npm install hubot-redis-brain --save
+RUN ln -sf /usr/share/zoneinfo/Asia/Bangkok /etc/localtime
 
-#ENV HUBOT_SLACK_TOKEN xxxxxxxxxxxxxxxxx
-#ENV HUBOT_SLACK_TEAM "Eloyt"
-#ENV HUBOT_SLACK_BOTNAME "el-bot"
+RUN apt-get update && apt-get -y upgrade
+RUN apt-get -y install  build-essential \
+                        libmysqlclient-dev \
+                        libssl-dev \
+                        curl
 
-ENTRYPOINT bin/hubot -a slack
+RUN npm install -g coffee-script yarn
+
+ENV TMP_DIR=/tmp
+ENV PROD_DIR=/opt/app
+ENV BIN_DIR=$PROD_DIR/node_modules/.bin
+
+RUN mkdir -p $TMP_DIR
+COPY yarn.lock $TMP_DIR/yarn.lock
+COPY package.json $TMP_DIR/package.json
+RUN cd $TMP_DIR && yarn
+
+# Make symlink from /tmp/nodemodules to production's directory
+RUN mkdir -p $PROD_DIR && cd $PROD_DIR && ln -s /tmp/node_modules
+
+COPY . $PROD_DIR/
+WORKDIR $PROD_DIR
+
+ENV HUBOT_PORT 8080
+ENV HUBOT_ADAPTER slack
+
+EXPOSE $HUBOT_PORT
+
+ENTRYPOINT $BIN_DIR/hubot
